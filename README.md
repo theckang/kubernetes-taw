@@ -18,49 +18,78 @@ projected usage.
 
 1. Create a [Google Cloud Platform project](https://console.cloud.google.com/project).
 
-1. Enable [billing](https://console.cloud.google.com/billing) for the project.
+2. Enable [billing](https://console.cloud.google.com/billing) for the project.
 
-1. Enable the [Google Kubernetes Engine API](https://console.cloud.google.com/flows/enableapi?apiid=container.googleapis.com).
+3. Enable the [Google Kubernetes Engine API](https://console.cloud.google.com/flows/enableapi?apiid=container.googleapis.com).
 
-1. Open [Cloud Shell](https://console.cloud.google.com/cloudshell).
+4. Open [Cloud Shell](https://console.cloud.google.com/cloudshell).
 
 ## Setup
 
-1. Create the Kubernetes Engnie cluster:
+1. Create the Kubernetes Engine cluster:
 
-    gcloud container clusters create cluster-1 --zone us-west1-a
+```
+gcloud container clusters create cluster-1 --zone us-west1-a
+```
 
-1. Set the zone of `cluster-1`:
+2. Set the zone of `cluster-1`:
 
-    gcloud config set compute/zone us-west1-a
+```
+gcloud config set compute/zone us-west1-a
+```
 
-1. Get authentication credentials to `cluster-1`:
+3. Get authentication credentials to `cluster-1`:
 
-    gcloud container clusters get-credentials cluster-1
+```
+gcloud container clusters get-credentials cluster-1
+```
 
 ## Pod
 
 Deploy a nginx web application container in a pod.  Create the YAML for the pod:
 
-    cat > pod.yaml <<EOF
-    apiVersion: v1
-    kind: Pod
-    metadata:
-      name: nginx-pod
-      labels:
-        app: nginx
-    spec:
-      containers:
-      - name: nginx
-        image: nginx:1.12.2
-        ports:
-        - containerPort: 80
-    EOF
+```bash
+cat > nginx-pod.yaml <<EOF
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-pod
+  labels:
+    app: nginx
+spec:
+  containers:
+  - name: nginx
+    image: nginx:1.12.2
+    ports:
+    - containerPort: 80
+EOF
+```
 
 Deploy the pod in Kubernetes:
 
-    kubectl apply -f pod.yaml
+    kubectl apply -f nginx-pod.yaml
 
+Let's say you want the application to serve content from this Git repository, and you want to make sure the content is periodically refreshed to be up to date.  The (git synchronizer)[https://github.com/kubernetes/git-sync] container is perfect for this.  Create the YAML for the pod.
+
+```bash
+cat > git-sync-pod.yaml <<EOF
+apiVersion: v1
+kind: Pod
+metadata:
+  name: git-sync-pod
+  labels:
+    app: git-sync
+spec:
+  containers:
+  - name: git-sync
+    image: gcr.io/google-containers/git-sync:v2.0.6
+    command: [""]
+    args: ["", ""]
+EOF
+```
+
+### Notes
+What really happens under the hood?  We make a request to the API server to deply our pod.  The scheduler notices that a pod needed to be deployed, goes through a series of policy decisions, and selects a node in the cluster to run that pod.  The kubelet agent on the node notices that it needs to run the pod, executes the pod via docker, and reports an updated status to the API server.  All state changes (deploy pod, selected node, pod running) is stored by the API server in etcd.  That's amazing.  Not only can Kubernetes run my container, but it can orchestrate it to run anywhere in my cluster.
 
 Outline:
 * What just happened?  Expand.
@@ -69,30 +98,32 @@ Outline:
 * One pod with two containers!
 * Deploy again.
 * This is the sidecar pattern.  1:1 between app and synchronizer.  You can reuse the synchronizer with other containers like nodejs, etc.
+* Another team wants to deploy nodejs application and also use a git synchronizer.  Show it.
 
 ## Deployment
 
-    cat > apiVersion: apps/v1 <<EOF
-    kind: Deployment
+```bash
+cat > apiVersion: apps/v1 <<EOF
+kind: Deployment
+metadata:
+  name: nginx-deployment
+spec:
+  selector:
+    matchLabels:
+      app: nginx
+  replicas: 1
+  template:
     metadata:
-      name: nginx-deployment
+      labels:
+        app: nginx
     spec:
-      selector:
-        matchLabels:
-          app: nginx
-      replicas: 1
-      template:
-        metadata:
-          labels:
-            app: nginx
-        spec:
-          containers:
-          - name: nginx
-            image: nginx:1.12.2
-            ports:
-            - containerPort: 80
-    EOF
-
+      containers:
+      - name: nginx
+        image: nginx:1.12.2
+        ports:
+        - containerPort: 80
+EOF
+```
 
 Outline
 * What happens if my pod dies?  It goes away.  But I really want Kubernetes to heal.
