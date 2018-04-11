@@ -26,19 +26,26 @@ projected usage.
 
 ## Setup
 
-1. Create the Kubernetes Engine cluster:
+1. Clone and cd to this repo:
+
+```
+git clone https://github.com/theckang/kubernetes-taw
+cd kubernetes-taw
+```
+
+2. Create the Kubernetes Engine cluster:
 
 ```
 gcloud container clusters create cluster-1 --zone us-west1-a
 ```
 
-2. Set the zone of `cluster-1`:
+3. Set the zone of `cluster-1`:
 
 ```
 gcloud config set compute/zone us-west1-a
 ```
 
-3. Get authentication credentials to `cluster-1`:
+4. Get authentication credentials to `cluster-1`:
 
 ```
 gcloud container clusters get-credentials cluster-1
@@ -46,53 +53,15 @@ gcloud container clusters get-credentials cluster-1
 
 ## Pod
 
-Deploy a nginx web application container in a pod.  Create the YAML for the pod:
+Review the nginx web application pod:
 
-```bash
-cat > nginx-pod.yaml <<EOF
-apiVersion: v1
-kind: Pod
-metadata:
-  name: nginx-pod
-  labels:
-    app: nginx
-spec:
-  containers:
-  - name: nginx
-    image: nginx:1.12.2
-    ports:
-    - containerPort: 80
-EOF
-```
+    cat nginx-pod.yaml
 
-Deploy the pod in Kubernetes:
+Deploy this pod in Kubernetes:
 
     kubectl apply -f nginx-pod.yaml
 
-Let's say you want the application to serve content from this Git repository, and you want to make sure the content is periodically refreshed to be up to date.  The (git synchronizer)[https://github.com/kubernetes/git-sync] container is perfect for this.  Create the YAML for the pod.
-
-```bash
-cat > git-sync-pod.yaml <<EOF
-apiVersion: v1
-kind: Pod
-metadata:
-  name: git-sync-pod
-  labels:
-    app: git-sync
-spec:
-  containers:
-  - name: git-sync
-    image: gcr.io/google-containers/git-sync:v2.0.6
-    command: [""]
-    args: ["", ""]
-EOF
-```
-
-### Notes
-What really happens under the hood?  We make a request to the API server to deply our pod.  The scheduler notices that a pod needed to be deployed, goes through a series of policy decisions, and selects a node in the cluster to run that pod.  The kubelet agent on the node notices that it needs to run the pod, executes the pod via docker, and reports an updated status to the API server.  All state changes (deploy pod, selected node, pod running) is stored by the API server in etcd.  That's amazing.  Not only can Kubernetes run my container, but it can orchestrate it to run anywhere in my cluster.
-
 Outline:
-* What just happened?  Expand.
 * That was easy.  What about the git synchronizer?  git synchronizer: https://github.com/kubernetes/git-sync
 * Would another pod work?  Deploy it.  No, it will not work because you need to share logs on the same filesystem.
 * One pod with two containers!
