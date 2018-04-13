@@ -2,8 +2,6 @@ kind: Service
 apiVersion: v1
 metadata:
   name: nginx-svc
-  labels:
-    app: nginx-svc
 spec:
   selector:
     app: nginx

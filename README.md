@@ -58,23 +58,22 @@ gcloud container clusters get-credentials cluster-1
 Review the YAML:
 
     cat pod.yaml
+    cat busybox.yaml
 
 Deploy with Kubernetes:
 
-    kubectl apply -f pod.yaml
+    kubectl create -f pod.yaml
+    kubectl create -f busybox.yaml
 
 Get pod:
 
-    kubectl get pods -l app: pod-example
+    kubectl get pod pod-example
 
-Check if app is running:
+Test webserver:
 
-    kubectl exec -it pod-example nginx "curl localhost:80"
-
-You should see the output:
-
-    ???    
-
+    POD_IP=$(kubectl get pod pod-example -o go-template='{{.status.podIP}}')
+    kubectl exec busybox curl $POD_IP
+    
 ### Sidecar Example
 
 Review the YAML:
@@ -83,19 +82,21 @@ Review the YAML:
 
 Deploy with Kubernetes:
 
-    kubectl apply -f sidecar.yaml
+    kubectl create -f sidecar.yaml
 
 Get pod:
 
-    kubectl get pods -l app: sidecar-example
+    kubectl get pod sidecar-example
 
-Check if the sidecar has access to the shared volume:
+Test webserver:
 
-    kubectl exec -it sidecar-example logrotate "ls /data"
+    SIDECAR_IP=$(kubectl get pod sidecar-example -o go-template='{{.status.podIP}}')
+    kubectl exec busybox curl $SIDECAR_IP
+    
+Check if sidecar has access to logs:
 
-You should see the output:
-
-    ???    
+    kubectl exec sidecar-example --container logrotate ls /logs
+    kubectl exec sidecar-example --container logrotate cat /logs/access.log
 
 ### Init Example
 
@@ -105,19 +106,21 @@ Review the YAML:
 
 Deploy with Kubernetes:
 
-    kubectl apply -f init.yaml
+    kubectl create -f init.yaml
 
 Get pod:
 
-    kubectl get pods -l app: init-example
+    kubectl get pod init-example
 
-Check if the web server content was initialized:
+Check if web server content was initialized:
 
-    kubectl exec -it init-example nginx "curl localhost:80"
+    INIT_IP=$(kubectl get pod init-example -o go-template='{{.status.podIP}}')
+    kubectl exec busybox curl $INIT_IP
 
-You should see the output:
+Check if sidecar has access to logs:
 
-    ???
+    kubectl exec sidecar-example --container logrotate ls /logs
+    kubectl exec init-example --container logrotate cat /logs/access.log
 
 ## Deployment
 
@@ -131,11 +134,11 @@ Review the YAML:
 
 Deploy with Kubernetes:
 
-    kubectl apply -f deployment.yaml
+    kubectl create -f deployment.yaml
 
 List deployment:
 
-    kubectl get deploy -l app: nginx-deployment
+    kubectl get deploy nginx-deployment
 
 List pods in the deployment:
 
@@ -143,12 +146,12 @@ List pods in the deployment:
 
 Delete one of the pods in the deployment:
     
-    POD_ID=kubectl get pods -l app: nginx # fiter by one
-    kubectl get delete pods POD_ID
+    POD_ID=$(kubectl get pods -l "app=nginx")
+    kubectl get delete pod POD_IP
 
 Watch Kubernetes heal the deployment:
 
-    watch kubectl get pods -l app: nginx
+    watch kubectl get pods -l "app=nginx"
 
 Scale the deployment:
 
@@ -156,7 +159,7 @@ Scale the deployment:
 
 Get pods in the deployment:
 
-    kubectl get pods -l app: nginx
+    kubectl get pods -l "app=nginx"
 
 ## Services
 
@@ -166,7 +169,7 @@ Review the YAML:
 
 Deploy the service:
 
-    kubectl apply -f svc.yaml
+    kubectl create -f svc.yaml
 
 You can also expose the service with:
 
@@ -174,7 +177,7 @@ You can also expose the service with:
 
 Watch service until EXTERNAL_IP is set:
 
-    watch kubectl get svc -l app: nginx-svc
+    watch kubectl get svc nginx-svc
 
 Get endpoint:
 
@@ -182,9 +185,8 @@ Get endpoint:
 
 Test service:
 
-    EXTERNAL_IP=kubectl get svc -l app: nginx-svc # update
-    EXTERNAL_PORT=kubectl get svc -l app: nginx-svc # update
-    curl EXTERNAL_IP:EXTERNAL_PORT
+    EXTERNAL_IP=kubectl get svc -l "app=nginx-svc" # update
+    curl EXTERNAL_IP
 
 Scale deployment down:
 
