@@ -65,13 +65,13 @@ Deploy with Kubernetes:
     kubectl create -f pod.yaml
     kubectl create -f busybox.yaml
 
-Get pod:
+Get pods:
 
-    kubectl get pod pod-example
+    kubectl get pods
 
 Test webserver:
 
-    POD_IP=$(kubectl get pod pod-example -o go-template='{{.status.podIP}}')
+    POD_IP=$(kubectl get pod pod-example -o jsonpath='{.status.podIP}''
     kubectl exec busybox curl $POD_IP
     
 ### Sidecar Example
@@ -90,7 +90,7 @@ Get pod:
 
 Test webserver:
 
-    SIDECAR_IP=$(kubectl get pod sidecar-example -o go-template='{{.status.podIP}}')
+    SIDECAR_IP=$(kubectl get pod sidecar-example -o jsonpath='{.status.podIP}''
     kubectl exec busybox curl $SIDECAR_IP
     
 Check if sidecar has access to logs:
@@ -114,7 +114,7 @@ Get pod:
 
 Check if web server content was initialized:
 
-    INIT_IP=$(kubectl get pod init-example -o go-template='{{.status.podIP}}')
+    INIT_IP=$(kubectl get pod init-example -o jsonpath='{.status.podIP}''
     kubectl exec busybox curl $INIT_IP
 
 Check if sidecar has access to logs:
@@ -124,9 +124,13 @@ Check if sidecar has access to logs:
 
 ## Deployment
 
-Delete the basic pod deployed earlier and observe the behavior:
+Delete the basic pod:
 
     kubectl delete pod pod-example
+
+Get pods:
+
+    kubectl get pods
 
 Review the YAML:
 
@@ -142,16 +146,16 @@ List deployment:
 
 List pods in the deployment:
 
-    kubectl get pods -l app: nginx
+    kubectl get pods -l app=nginx
+
+Open another terminal and watch the deployment:
+
+    watch kubectl get pods -l app=nginx
 
 Delete one of the pods in the deployment:
     
-    POD_ID=$(kubectl get pods -l "app=nginx")
-    kubectl get delete pod POD_IP
-
-Watch Kubernetes heal the deployment:
-
-    watch kubectl get pods -l "app=nginx"
+    POD_ID=$(kubectl get pods -l "app=nginx" -o jsonpath='{.items[0].metadata.name}')
+    kubectl delete pod $POD_ID
 
 Scale the deployment:
 
@@ -159,7 +163,7 @@ Scale the deployment:
 
 Get pods in the deployment:
 
-    kubectl get pods -l "app=nginx"
+    kubectl get pods -l app=nginx
 
 ## Services
 
@@ -175,23 +179,24 @@ You can also expose the service with:
 
     # kubectl expose deploy nginx-deployment --port=80 --target-port=80
 
-Watch service until EXTERNAL_IP is set:
+Open another terminal and watch service until EXTERNAL_IP is set:
 
     watch kubectl get svc nginx-svc
 
-Get endpoint:
+Get endpoints:
 
-    kubectl get endpoints
+    kubectl get endpoints nginx-svc
 
 Test service:
 
-    EXTERNAL_IP=kubectl get svc -l "app=nginx-svc" # update
-    curl EXTERNAL_IP
+    EXTERNAL_IP=$(kubectl get svc nginx-svc -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+    curl $EXTERNAL_IP
+
+Open another terminal and watch Kubernetes dynamically update endpoints:
+
+    watch kubectl get endpoints nginx-svc
 
 Scale deployment down:
 
     kubectl scale --replicas=1 deployment/nginx-deployment
 
-Watch Kubernetes dynamically update endpoint:
-
-    watch kubectl get endpoints
